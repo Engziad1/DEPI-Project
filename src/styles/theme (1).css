@@ -1,0 +1,110 @@
+// src/styles/theme.js
+// ============================================================
+// Tawasol Design System — Design Tokens (JS Source)
+// ------------------------------------------------------------
+// الاستخدام:
+//   1) الشاشات القديمة (Inline Styles: Landing, Auth, KidsDashboard)
+//      بتستورد الأوبچكت ده مباشرة.
+//   2) أي منطق JS محتاج قيمة اللون الخام (Chart.js series colors,
+//      شروط ديناميكية زي: color={score > 80 ? COLORS.green : COLORS.warning}).
+//
+// مهم: نفس التوكنز دي متكررة في theme.css كـ CSS Variables
+// عشان تستخدمها شاشات CSS Modules الجديدة. أي تعديل هنا
+// لازم ينعمل بره في theme.css كمان (راجع دالة verify أسفل الملف).
+// ============================================================
+
+export const COLORS = {
+  // Brand
+  primary: "#2C6E8A",
+  primaryDark: "#1A4D63",
+  primaryLight: "#4A90AA",
+  accent: "#E8834A",
+  accentLight: "#F4B088",
+  green: "#4A9B72",
+  greenLight: "#7DC4A0",
+  lavender: "#8B7BB5",
+  lavenderLight: "#B8AED4",
+
+  // Neutrals
+  background: "#F0EDE8",
+  backgroundWarm: "#EAE5DD",
+  white: "#FFFFFF",
+  card: "#FAFAF7",
+  border: "#DDD8CF",
+
+  // Text
+  text: "#1E2535",
+  textMid: "#4A5166",
+  textSoft: "#8890A6",
+
+  // Status (متوافقة WCAG AA فوق خلفية بيضاء/card)
+  success: "#22C55E",
+  warning: "#F59E0B",
+  info: "#3B82F6",
+  danger: "#EF4444",
+  error: "#E05555",
+};
+
+// Sensory-Safe Palette — تُستخدم حصرياً داخل شاشات الطفل
+// (Kids Zone, الألعاب التعليمية). أقل تشبعاً (Saturation) من
+// ألوان الـ Brand الأساسية، لتقليل الإثارة الحسية الزائدة
+// (Sensory Overload) — مبدأ مُتبع في تصميم واجهات ASD.
+export const KIDS_PALETTE = {
+  skyBlue: "#A9D3E0",
+  mintGreen: "#B7DCC7",
+  sand: "#EAD9BE",
+  softLavender: "#D3C9E8",
+  blush: "#F0C9C0",
+  neutralBg: "#FBF9F5",
+  feedbackPositive: "#8FBF9F", // بديل الأخضر المشبّع لحالة "إجابة صحيحة"
+  feedbackGentle: "#E3B98E",   // بديل الأحمر لحالة "حاول تاني" — ممنوع نستخدم أحمر نقي هنا
+};
+
+export const FONTS = {
+  heading: "'Cairo', sans-serif",
+  body: "'Tajawal', sans-serif",
+};
+
+export const SPACING = {
+  xs: "4px",
+  sm: "8px",
+  md: "16px",
+  lg: "24px",
+  xl: "32px",
+  xxl: "48px",
+};
+
+export const RADIUS = {
+  sm: "8px",
+  md: "14px",
+  lg: "20px",
+  pill: "50px",
+};
+
+export const BREAKPOINTS = {
+  mobile: 480,
+  tablet: 768,
+  laptop: 1024,
+  desktop: 1440,
+};
+
+// مدد الأنيميشن — تُقرأ دايماً مع فحص prefers-reduced-motion
+// على مستوى الـ Component (راجع hooks/usePrefersReducedMotion.js).
+export const MOTION = {
+  fast: "0.2s",
+  base: "0.3s",
+  slow: "0.6s",
+  float: "6s",
+};
+
+export const Z_INDEX = {
+  base: 1,
+  dropdown: 10,
+  sticky: 100,
+  modal: 1000,
+  toast: 2000,
+};
+
+const theme = { COLORS, KIDS_PALETTE, FONTS, SPACING, RADIUS, BREAKPOINTS, MOTION, Z_INDEX };
+
+export default theme;
