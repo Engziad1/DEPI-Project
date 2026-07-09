@@ -1,32 +1,16 @@
-// src/services/authService.js
+﻿// src/services/authService.js
 // ============================================================
-// طبقة المصادقة. أي Component (Auth.jsx) بيتكلم مع الدوال دي
-// بس، مش بيعرف حاجة عن Firebase أو الـ Mock — كده لو اتفعّل
-// Firebase الحقيقي، مفيش أي تعديل مطلوب في الواجهات.
+// طبقة المصادقة الحقيقية — متصلة بـ Supabase Auth مباشرة.
+// أي Component (Auth.jsx) بيتكلم مع الدوال دي بس.
 // ============================================================
-
-const USE_MOCK_AUTH = true; // بدّلها false بعد ما تحط مفاتيح Firebase الحقيقية في firebase.js
-
-// --- الكود الحقيقي (معلّق لحد تفعيل Firebase) ---
-// import { auth, db } from "../firebase";
-// import {
-//   signInWithEmailAndPassword,
-//   createUserWithEmailAndPassword,
-//   GoogleAuthProvider,
-//   signInWithPopup,
-// } from "firebase/auth";
-// import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-
-const MOCK_NETWORK_DELAY = 700;
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+import { supabase } from "../supabaseClient";
 
 const ERROR_MESSAGES = {
-  "auth/email-already-in-use": "هذا البريد الإلكتروني مستخدم بالفعل.",
-  "auth/invalid-email": "صيغة البريد الإلكتروني غير صحيحة.",
-  "auth/weak-password": "كلمة المرور ضعيفة جداً (6 أحرف على الأقل).",
-  "auth/user-not-found": "لا يوجد حساب مسجّل بهذا البريد الإلكتروني.",
-  "auth/wrong-password": "كلمة المرور غير صحيحة.",
-  "auth/too-many-requests": "محاولات كثيرة جداً، حاول مرة أخرى بعد قليل.",
+  "invalid_credentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+  "user_already_exists": "هذا البريد الإلكتروني مستخدم بالفعل.",
+  "email_not_confirmed": "برجاء تأكيد بريدك الإلكتروني أولاً.",
+  "weak_password": "كلمة المرور ضعيفة جداً (6 أحرف على الأقل).",
+  "invalid_email": "صيغة البريد الإلكتروني غير صحيحة.",
   default: "حدث خطأ غير متوقع، برجاء المحاولة مرة أخرى.",
 };
 
@@ -34,63 +18,71 @@ export function getAuthErrorMessage(code) {
   return ERROR_MESSAGES[code] || ERROR_MESSAGES.default;
 }
 
-function mockUid(seed) {
-  return "uid-" + btoa(unescape(encodeURIComponent(seed))).replace(/[^a-zA-Z0-9]/g, "").slice(0, 12);
-}
-
+// --- تسجيل الدخول بالإيميل ---
 export async function loginWithEmail(email, password) {
-  if (USE_MOCK_AUTH) {
-    await delay(MOCK_NETWORK_DELAY);
-    if (!/\S+@\S+\.\S+/.test(email)) throw { code: "auth/invalid-email" };
-    if (password.length < 6) throw { code: "auth/wrong-password" };
-    return {
-      uid: mockUid(email),
-      name: email.split("@")[0],
-      email,
-      role: "parent",
-      photoURL: null,
-    };
-  }
-
-  // const cred = await signInWithEmailAndPassword(auth, email, password);
-  // return getUserProfile(cred.user.uid);
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw { code: error.message.includes("Invalid") ? "invalid_credentials" : "default" };
+  return data.user;
 }
 
+// --- إنشاء حساب جديد ---
+// role: "parent" | "specialist"
+// extra: { childName, childAge } لو parent، أو { specialty } لو specialist
 export async function registerUser({ name, email, password, role, extra = {} }) {
-  if (USE_MOCK_AUTH) {
-    await delay(MOCK_NETWORK_DELAY);
-    if (!/\S+@\S+\.\S+/.test(email)) throw { code: "auth/invalid-email" };
-    if (password.length < 6) throw { code: "auth/weak-password" };
-    return { uid: mockUid(email), name, email, role, photoURL: null, ...extra };
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      // بتتخزن في raw_user_meta_data وبيقدر الـ trigger يقرأها
+      // عشان يعمل صف في profiles تلقائياً بدون race condition
+      data: { full_name: name, role },
+    },
+  });
+
+  if (error) {
+    const code = error.message.includes("already registered")
+      ? "user_already_exists"
+      : error.message.includes("Password")
+      ? "weak_password"
+      : "default";
+    throw { code };
   }
 
-  // const cred = await createUserWithEmailAndPassword(auth, email, password);
-  // await setDoc(doc(db, "users", cred.user.uid), {
-  //   uid: cred.user.uid, name, email, role, createdAt: serverTimestamp(), ...extra,
-  // });
-  // return getUserProfile(cred.user.uid);
+  // لو parent ومعاه بيانات طفل، نضيفه في جدول children
+  if (role === "parent" && extra.childName && data.user) {
+    const { error: childError } = await supabase.from("children").insert({
+      parent_id: data.user.id,
+      full_name: extra.childName,
+      age: extra.childAge || null,
+    });
+    if (childError) console.error("child insert error:", childError);
+  }
+
+  // لو specialist، نحدّث بيانات التخصص في جدول specialists
+  if (role === "specialist" && data.user) {
+    const { error: specError } = await supabase.from("specialists").insert({
+      id: data.user.id,
+      specialization: extra.specialty || null,
+    });
+    if (specError) console.error("specialist insert error:", specError);
+  }
+
+  return data.user;
 }
 
+// --- تسجيل دخول بجوجل ---
 export async function loginWithGoogle() {
-  if (USE_MOCK_AUTH) {
-    await delay(MOCK_NETWORK_DELAY);
-    return {
-      uid: "uid-google-mock",
-      name: "مستخدم جوجل",
-      email: "user@gmail.com",
-      role: null, // مستخدم جديد عبر جوجل → لازم يكمل بياناته
-      photoURL: null,
-    };
-  }
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: window.location.origin + "/complete-profile" },
+  });
+  if (error) throw { code: "default" };
+  return data;
+}
 
-  // const cred = await signInWithPopup(auth, new GoogleAuthProvider());
-  // const snap = await getDoc(doc(db, "users", cred.user.uid));
-  // if (snap.exists()) return snap.data();
-  // await setDoc(doc(db, "users", cred.user.uid), {
-  //   uid: cred.user.uid, name: cred.user.displayName, email: cred.user.email,
-  //   role: null, photoURL: cred.user.photoURL, createdAt: serverTimestamp(),
-  // });
-  // return { uid: cred.user.uid, role: null, ... };
+// --- تسجيل خروج ---
+export async function logout() {
+  await supabase.auth.signOut();
 }
 
 export function calculatePasswordStrength(password) {
