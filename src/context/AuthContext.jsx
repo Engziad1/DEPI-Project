@@ -1,50 +1,54 @@
 // src/context/AuthContext.jsx
 // ============================================================
-// مصدر واحد لحالة المستخدم (مسجّل دخول؟ دوره إيه؟) على مستوى
-// التطبيق كله. أي Component محتاج يعرف "هو مين؟" بيستخدم
-// useAuth() بدل ما يقرأ localStorage بنفسه في كل مكان.
+// مصدر واحد لحالة المستخدم الحقيقي عبر Supabase. يقرأ الجلسة
+// (auth.users) ثم يجيب الدور (role) من جدول profiles، عشان
+// أي Component يقدر يعرف "هو مين ودوره إيه" بدون ما يكرر
+// استعلامات Supabase بنفسه.
 // ============================================================
 import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "../supabaseClient";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  // currentUser: null = لسه بيتحمّل، false = مش مسجل دخول، object = مسجل
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // profile: undefined = لسه بيتحمّل، null = مش مسجل دخول، object = مسجل ومعاه role
+  const [profile, setProfile] = useState(undefined);
 
   useEffect(() => {
-    // TODO: استبدال ده بـ Firebase onAuthStateChanged لما نفعّل Firebase الحقيقي
-    // import { onAuthStateChanged } from "firebase/auth";
-    // import { auth } from "../firebase";
-    // return onAuthStateChanged(auth, async (user) => {
-    //   if (user) {
-    //     const profile = await getUserProfile(user.uid); // من profileService
-    //     setCurrentUser(profile);
-    //   } else {
-    //     setCurrentUser(false);
-    //   }
-    //   setLoading(false);
-    // });
+    let isMounted = true;
 
-    // Mock مؤقت: بيقرأ من localStorage عشان نقدر نختبر الراوتينج فوراً
-    const stored = localStorage.getItem("tawasol_mock_user");
-    setCurrentUser(stored ? JSON.parse(stored) : false);
-    setLoading(false);
+    async function loadProfile(userId) {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      if (isMounted) setProfile(error ? null : data);
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) loadProfile(session.user.id);
+      else if (isMounted) setProfile(null);
+    });
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) loadProfile(session.user.id);
+      else setProfile(null);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription?.subscription?.unsubscribe();
+    };
   }, []);
 
-  const login = (userData) => {
-    localStorage.setItem("tawasol_mock_user", JSON.stringify(userData));
-    setCurrentUser(userData);
-  };
-
-  const logout = () => {
-    localStorage.removeItem("tawasol_mock_user");
-    setCurrentUser(false);
-  };
+  async function logout() {
+    await supabase.auth.signOut();
+    setProfile(null);
+  }
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading, login, logout }}>
+    <AuthContext.Provider value={{ profile, loading: profile === undefined, logout }}>
       {children}
     </AuthContext.Provider>
   );

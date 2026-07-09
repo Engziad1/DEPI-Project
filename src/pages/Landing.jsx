@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ─────────────────────────────────────────────────────────────
 //  DESIGN TOKENS
@@ -231,12 +232,24 @@ function SectionLabel({ text, color = C.accent }) {
 // ─────────────────────────────────────────────────────────────
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  function scrollToSection(id) {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  const NAV_LINKS = [
+    { label: "الرئيسية",    id: "hero" },
+    { label: "من نحن",      id: "how-it-works" },
+    { label: "الأقسام",     id: "features" },
+    { label: "الأخصائيون",  id: "specialists" },
+  ];
 
   return (
     <nav style={{
@@ -256,7 +269,10 @@ function Navbar() {
       transition:     "all 0.35s",
     }}>
       {/* Logo */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div
+        onClick={() => scrollToSection("hero")}
+        style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
+      >
         <div style={{
           width:        42,
           height:       42,
@@ -282,23 +298,30 @@ function Navbar() {
 
       {/* Links */}
       <div className="nav-links" style={{ display: "flex", gap: 36, alignItems: "center" }}>
-        {["الرئيسية", "من نحن", "الأقسام", "الأخصائيون"].map(link => (
-          <a key={link} className="nav-link">{link}</a>
+        {NAV_LINKS.map(link => (
+          <a key={link.id} className="nav-link" onClick={() => scrollToSection(link.id)}>
+            {link.label}
+          </a>
         ))}
-        <button className="btn-primary" style={{ padding: "10px 24px", fontSize: 14 }}>
-        ابدأ سجل
+        <button
+          className="btn-primary"
+          style={{ padding: "10px 24px", fontSize: 14 }}
+          onClick={() => navigate("/auth")}
+        >
+          ابدأ سجل
         </button>
       </div>
     </nav>
   );
 }
 
+
 // ─────────────────────────────────────────────────────────────
 //  HERO SECTION
 // ─────────────────────────────────────────────────────────────
 function HeroSection() {
   return (
-    <section style={{
+    <section id="hero" style={{
       minHeight:  "100vh",
       background: `linear-gradient(160deg, #E8F3F8 0%, ${C.bg} 55%, #EDE8F3 100%)`,
       display:    "flex",
@@ -647,7 +670,7 @@ function FeaturesSection() {
   const isWide = activeTab === "child" || activeTab === "specialist";
 
   return (
-    <section style={{ padding: "96px 5%", background: C.bg }}>
+    <section id="features" style={{ padding: "96px 5%", background: C.bg }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <Reveal style={{ textAlign: "center", marginBottom: 60 }}>
           <SectionLabel text="من يستفيد من تواصل؟" />
@@ -736,7 +759,7 @@ function HowItWorksSection() {
   ];
 
   return (
-    <section style={{ padding: "96px 5%", background: C.bgWarm }}>
+    <section id="how-it-works" style={{ padding: "96px 5%", background: C.bgWarm }}>
       <div style={{ maxWidth: 1000, margin: "0 auto" }}>
         <Reveal style={{ textAlign: "center", marginBottom: 66 }}>
           <SectionLabel text="كيف تعمل المنصة؟" color={C.primary} />
@@ -802,7 +825,7 @@ function SpecialistsSection() {
   ];
 
   return (
-    <section style={{ padding: "96px 5%", background: C.bg }}>
+    <section id="specialists" style={{ padding: "96px 5%", background: C.bg }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <Reveal style={{ textAlign: "center", marginBottom: 54 }}>
           <SectionLabel text="فريقنا من الخبراء" color={C.green} />
