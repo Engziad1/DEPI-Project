@@ -8,6 +8,7 @@ import TracingGame from "./TracingGame";
 import MusicGame from "./MusicGame";
 import { useKidsDashboardData } from "../hooks/useKidsDashboardData";
 import { supabase } from "../supabaseClient";
+import KidsPrayerApp from './KidsPrayerApp';
 
 const MOODS = [
   { id:"happy", emoji:"😄", label:"سعيد",  color:"#FFD93D", bg:"#FFFBEA", border:"#FFD93D" },
@@ -588,6 +589,9 @@ export default function KidsDashboard() {
 
         {gameModal && <GameModal gameId={gameModal} onClose={() => setGame(null)} />}
       </div>
+      <section className="dashboard-section kids-prayer-section">
+  <KidsPrayerApp />
+</section>
     </>
   );
 }
