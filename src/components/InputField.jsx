@@ -1,58 +1,52 @@
-.grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-sm);
-  margin-bottom: var(--space-lg);
-}
+// src/components/InputField.jsx
+// ============================================================
+// حقل إدخال موحّد لصفحة Auth — بيدعم إظهار/إخفاء كلمة المرور
+// (👁️ toggleBtn) ورسالة خطأ تحت الحقل. الأنماط في
+// InputField.module.css (field/label/inputWrapper/input/
+// toggleBtn/errorText — الأسماء دي كانت موجودة فعلاً في الـ CSS
+// المسترجع، فالمكوّن اتكتب ليطابقها بالظبط).
+// ============================================================
+import { useState } from "react";
+import styles from "./InputField.module.css";
 
-.card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: var(--space-md) var(--space-sm);
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-white);
-  cursor: pointer;
-  transition: transform var(--motion-fast), border-color var(--motion-fast), background var(--motion-fast);
-  font-family: var(--font-body);
-  text-align: center;
-}
+export default function InputField({
+  label,
+  type = "text",
+  value,
+  onChange,
+  error,
+  autoComplete,
+  placeholder,
+}) {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === "password";
+  const actualType = isPassword ? (showPassword ? "text" : "password") : type;
 
-.card:hover:not(.disabled) {
-  transform: translateY(-2px);
-  border-color: var(--color-primary-light);
-}
-
-.active {
-  border-color: var(--color-primary);
-  background: rgba(44, 110, 138, 0.06);
-}
-
-.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.icon {
-  font-size: 26px;
-}
-
-.label {
-  font-weight: 700;
-  font-size: 13.5px;
-  color: var(--color-text);
-}
-
-.desc {
-  font-size: 11px;
-  color: var(--color-text-soft);
-  line-height: 1.4;
-}
-
-@media (max-width: 480px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
+  return (
+    <div className={styles.field}>
+      {label && <label className={styles.label}>{label}</label>}
+      <div className={`${styles.inputWrapper} ${error ? styles.inputError : ""}`}>
+        <input
+          className={styles.input}
+          type={actualType}
+          value={value}
+          onChange={onChange}
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          aria-invalid={Boolean(error)}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            className={styles.toggleBtn}
+            onClick={() => setShowPassword((s) => !s)}
+            aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+          >
+            {showPassword ? "🙈" : "👁️"}
+          </button>
+        )}
+      </div>
+      {error && <span className={styles.errorText}>{error}</span>}
+    </div>
+  );
 }

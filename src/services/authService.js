@@ -1,7 +1,12 @@
-﻿// src/services/authService.js
+// src/services/authService.js
 // ============================================================
 // طبقة المصادقة الحقيقية — متصلة بـ Supabase Auth مباشرة.
 // أي Component (Auth.jsx) بيتكلم مع الدوال دي بس.
+//
+// ⚠️ تغيير مهم: إنشاء صف children/specialists بقى بيحصل من جوه
+// الـ trigger (handle_new_user في Supabase) مش من هنا — عشان
+// يشتغل حتى لو الإيميل لسه مش متأكد (مفيش Session وقتها، فأي
+// insert من العميل هيترفض بسبب RLS). شوف trigger_update.sql
 // ============================================================
 import { supabase } from "../supabaseClient";
 
@@ -18,24 +23,44 @@ export function getAuthErrorMessage(code) {
   return ERROR_MESSAGES[code] || ERROR_MESSAGES.default;
 }
 
+async function fetchProfile(userId) {
+  const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
+  return data || null;
+}
+
 // --- تسجيل الدخول بالإيميل ---
+// بيرجّع شكل موحّد: { id, email, role, name }
 export async function loginWithEmail(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw { code: error.message.includes("Invalid") ? "invalid_credentials" : "default" };
-  return data.user;
+
+  const profile = await fetchProfile(data.user.id);
+  return {
+    id: data.user.id,
+    email: data.user.email,
+    role: profile?.role ?? null,
+    name: profile?.Full_name ?? "",
+  };
 }
 
 // --- إنشاء حساب جديد ---
 // role: "parent" | "specialist"
 // extra: { childName, childAge } لو parent، أو { specialty } لو specialist
+// بيرجّع: { id, email, role, name, needsEmailConfirmation }
 export async function registerUser({ name, email, password, role, extra = {} }) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      // بتتخزن في raw_user_meta_data وبيقدر الـ trigger يقرأها
-      // عشان يعمل صف في profiles تلقائياً بدون race condition
-      data: { full_name: name, role },
+      // كل البيانات دي بتوصل للـ trigger عشان يعمل profiles +
+      // children/specialists في نفس اللحظة، من غير ما نحتاج Session
+      data: {
+        full_name: name,
+        role,
+        child_name: role === "parent" ? extra.childName || "" : undefined,
+        child_age: role === "parent" ? String(extra.childAge || "") : undefined,
+        specialty: role === "specialist" ? extra.specialty || "" : undefined,
+      },
     },
   });
 
@@ -48,26 +73,14 @@ export async function registerUser({ name, email, password, role, extra = {} }) 
     throw { code };
   }
 
-  // لو parent ومعاه بيانات طفل، نضيفه في جدول children
-  if (role === "parent" && extra.childName && data.user) {
-    const { error: childError } = await supabase.from("children").insert({
-      parent_id: data.user.id,
-      full_name: extra.childName,
-      age: extra.childAge || null,
-    });
-    if (childError) console.error("child insert error:", childError);
-  }
-
-  // لو specialist، نحدّث بيانات التخصص في جدول specialists
-  if (role === "specialist" && data.user) {
-    const { error: specError } = await supabase.from("specialists").insert({
-      id: data.user.id,
-      specialization: extra.specialty || null,
-    });
-    if (specError) console.error("specialist insert error:", specError);
-  }
-
-  return data.user;
+  return {
+    id: data.user.id,
+    email: data.user.email,
+    role,
+    name,
+    // لو true، يبقى لسه محتاج يأكد إيميله قبل ما يقدر يدخل فعلياً
+    needsEmailConfirmation: !data.session,
+  };
 }
 
 // --- تسجيل دخول بجوجل ---

@@ -1,63 +1,37 @@
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  margin-bottom: var(--space-md);
-  text-align: right;
-}
+// src/components/RoleSelector.jsx
+// ============================================================
+// اختيار الدور خطوة أولى في التسجيل. دور "الطفل" مُعطّل بتصميم
+// (Disabled by design) — حساب الطفل يُنشأ فقط من داخل حساب
+// ولي الأمر بعد تسجيل الدخول، وليس من هنا مباشرة.
+// ============================================================
+import styles from "./RoleSelector.module.css";
 
-.label {
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-mid);
-}
+const ROLES = [
+  { value: "parent", icon: "👨‍👩‍👧", label: "ولي أمر", desc: "متابعة طفلك وحجز الجلسات" },
+  { value: "specialist", icon: "👩‍⚕️", label: "أخصائي", desc: "إدارة خطط علاج وتقارير" },
+  { value: "child", icon: "🧒", label: "طفل", desc: "يُنشأ الحساب عبر ولي الأمر", disabled: true },
+];
 
-.inputWrapper {
-  display: flex;
-  align-items: center;
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-white);
-  transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
-}
-
-.inputWrapper:focus-within {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(44, 110, 138, 0.12);
-}
-
-.inputError {
-  border-color: var(--color-error);
-}
-
-.inputError:focus-within {
-  box-shadow: 0 0 0 3px rgba(224, 85, 85, 0.12);
-}
-
-.input {
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  padding: 12px 14px;
-  font-family: var(--font-body);
-  font-size: 15px;
-  color: var(--color-text);
-  direction: rtl;
-}
-
-.toggleBtn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-  padding: 0 12px;
-  color: var(--color-text-soft);
-}
-
-.errorText {
-  font-size: 12.5px;
-  color: var(--color-error);
-  font-family: var(--font-body);
+export default function RoleSelector({ selectedRole, onSelect }) {
+  return (
+    <div className={styles.grid} role="radiogroup" aria-label="اختر دورك">
+      {ROLES.map((r) => (
+        <button
+          key={r.value}
+          type="button"
+          role="radio"
+          aria-checked={selectedRole === r.value}
+          disabled={r.disabled}
+          onClick={() => !r.disabled && onSelect(r.value)}
+          className={`${styles.card} ${selectedRole === r.value ? styles.active : ""} ${
+            r.disabled ? styles.disabled : ""
+          }`}
+        >
+          <span className={styles.icon}>{r.icon}</span>
+          <span className={styles.label}>{r.label}</span>
+          <span className={styles.desc}>{r.desc}</span>
+        </button>
+      ))}
+    </div>
+  );
 }

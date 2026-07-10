@@ -318,7 +318,7 @@ function Navbar() {
 //  HERO SECTION
 // ─────────────────────────────────────────────────────────────
 // رابط الفيديو التعريفي — بدّل القيمة دي برابط اليوتيوب/الفيديو الحقيقي لما يجهز
-const INTRO_VIDEO_URL = "";
+const INTRO_VIDEO_URL = "https://www.youtube.com/embed/IDSwCW8GL7w?autoplay=1";
 
 function HeroSection() {
   const navigate = useNavigate();

@@ -109,3 +109,32 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+/* ============================================================
+   Tawasol Design Tokens — مطلوبة لـ Auth.jsx وكل ملفات الـ
+   components بتاعة (InputField, RoleSelector, PasswordStrengthMeter)
+   ============================================================ */
+:root {
+  --color-primary: #2C6E8A;
+  --color-primary-light: #4A90AA;
+  --color-white: #FFFFFF;
+  --color-border: #DDD8CF;
+  --color-text: #1E2535;
+  --color-text-mid: #4A5166;
+  --color-text-soft: #8890A6;
+  --color-error: #E05555;
+  --color-success: #4A9B72;
+  --color-warning: #E8A23B;
+
+  --font-body: 'Tajawal', sans-serif;
+
+  --space-xs: 6px;
+  --space-sm: 10px;
+  --space-md: 16px;
+  --space-lg: 24px;
+
+  --radius-md: 12px;
+  --radius-pill: 999px;
+
+  --motion-fast: 0.2s ease;
+  --motion-base: 0.3s ease;
+}

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useParentDashboardData } from "../hooks/useParentDashboardData";
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 const T = {
@@ -10,41 +12,6 @@ const T = {
   border:    "#EAE6DE", success:   "#5BB88A", successBg:"#EAF7F1",
   shadow:    "rgba(44,44,58,0.07)", shadowMd:"rgba(44,44,58,0.13)",
 };
-
-// ─── Mock child data ──────────────────────────────────────────────────────────
-const CHILD = {
-  name:       "أحمد محمد",
-  age:        7,
-  avatar:     "👦",
-  specialist: { name:"د. سارة محمود", title:"أخصائية ABA", rating:4.9, nextSession:"غداً الساعة 10:00 ص", sessionsLeft:5, totalSessions:28 },
-  todayMood:  { id:"happy", emoji:"😄", label:"سعيد", color:"#FFD93D", bg:"#FFFBEA" },
-  progress:   78,
-  streak:     5, // days streak
-};
-
-const TASKS_TODAY = [
-  { id:"pray",  emoji:"🕌", label:"صلى",            done:true },
-  { id:"teeth", emoji:"🦷", label:"غسل أسنانه",     done:true },
-  { id:"game",  emoji:"🎮", label:"لعب ألعاب",      done:true },
-  { id:"hw",    emoji:"📚", label:"عمل الواجب",     done:false },
-  { id:"read",  emoji:"📖", label:"قرأ كتاب",       done:false },
-  { id:"eat",   emoji:"🥗", label:"أكل أكل صحي",    done:true },
-];
-
-const GAMES_TODAY = [
-  { id:"memory", emoji:"🧠", label:"لعبة الذاكرة", duration:"15 دقيقة", stars:3, time:"10:30 ص" },
-  { id:"draw",   emoji:"🎨", label:"الرسم",         duration:"20 دقيقة", stars:5, time:"04:00 م" },
-];
-
-const WEEK_MOODS = [
-  { day:"أحد",  emoji:"😄", color:"#FFD93D" },
-  { day:"اثن",  emoji:"😌", color:"#6BCB77" },
-  { day:"ثلا",  emoji:"😢", color:"#74B9FF" },
-  { day:"أرب",  emoji:"😄", color:"#FFD93D" },
-  { day:"خمس",  emoji:"😤", color:"#FF6B6B" },
-  { day:"جمع",  emoji:"😌", color:"#6BCB77" },
-  { day:"سبت",  emoji:"😄", color:"#FFD93D" },
-];
 
 // ─── Helper components ────────────────────────────────────────────────────────
 function Card({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
@@ -91,12 +58,12 @@ function ProgressRing({ pct, size = 80 }: { pct: number; size?: number }) {
 }
 
 // ─── Mood Card ────────────────────────────────────────────────────────────────
-function MoodCard() {
-  const m = CHILD.todayMood;
+function MoodCard({ child, moodToday, weekMoods }: any) {
+  const m = moodToday;
   return (
     <Card>
       <div style={{ padding: "20px" }}>
-        <SectionLabel>مزاج أحمد النهارده</SectionLabel>
+        <SectionLabel>مزاج {child.full_name.split(" ")[0]} النهارده</SectionLabel>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
           <div style={{
             width: 72, height: 72, borderRadius: 20,
@@ -105,191 +72,160 @@ function MoodCard() {
             fontSize: 42,
           }}>{m.emoji}</div>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: T.text }}>{m.label} 😊</div>
-            <div style={{ fontSize: 12, color: T.textMuted, marginTop: 4 }}>سجّله الساعة 8:30 ص</div>
-            <div style={{
-              marginTop: 8, display: "inline-block",
-              padding: "4px 12px", borderRadius: 999,
-              background: m.bg, color: m.color,
-              fontSize: 12, fontWeight: 700,
-            }}>يوم حلو 🌟</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: T.text }}>{m.label}</div>
           </div>
         </div>
 
-        {/* Week mood strip */}
-        <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 14 }}>
-          <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 10, fontWeight: 600 }}>مزاجه طول الأسبوع</div>
-          <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
-            {WEEK_MOODS.map((d, i) => (
-              <div key={i} style={{ textAlign: "center", flex: 1 }}>
-                <div style={{
-                  width: "100%", aspectRatio: "1", borderRadius: 12,
-                  background: d.color + "22",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 18, marginBottom: 4,
-                  border: i === 6 ? `2px solid ${d.color}` : "none",
-                }}>{d.emoji}</div>
-                <div style={{ fontSize: 9, color: T.textMuted }}>{d.day}</div>
-              </div>
-            ))}
+        {weekMoods.length > 0 && (
+          <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 14 }}>
+            <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 10, fontWeight: 600 }}>مزاجه طول الأسبوع</div>
+            <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
+              {weekMoods.map((d: any, i: number) => (
+                <div key={i} style={{ textAlign: "center", flex: 1 }}>
+                  <div style={{
+                    width: "100%", aspectRatio: "1", borderRadius: 12,
+                    background: d.color + "22",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 18, marginBottom: 4,
+                  }}>{d.emoji}</div>
+                  <div style={{ fontSize: 9, color: T.textMuted }}>{d.day}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </Card>
   );
 }
 
 // ─── Specialist Card ──────────────────────────────────────────────────────────
-function SpecialistCard() {
-  const sp = CHILD.specialist;
+function SpecialistCard({ specialist, progress }: any) {
+  if (!specialist) {
+    return (
+      <Card>
+        <div style={{ padding: "20px", textAlign: "center", color: T.textMuted, fontSize: 13 }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>👨‍⚕️</div>
+          لسه مفيش أخصائي متابع للطفل ده
+        </div>
+      </Card>
+    );
+  }
   return (
     <Card>
       <div style={{ padding: "20px" }}>
         <SectionLabel>الأخصائي المتابع</SectionLabel>
         <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 18 }}>
-          {/* Avatar */}
           <div style={{
             width: 54, height: 54, borderRadius: 16,
             background: T.tealBg, border: `2px solid ${T.teal}33`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 22, fontWeight: 900, color: T.teal, flexShrink: 0,
-          }}>سم</div>
+          }}>{specialist.name?.[0] || "؟"}</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{sp.name}</div>
-            <div style={{ fontSize: 12, color: T.textMuted }}>{sp.title}</div>
-            <div style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 4 }}>
-              <span style={{ fontSize: 12, color: "#E9C84C" }}>⭐</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{sp.rating}</span>
-            </div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{specialist.name}</div>
+            <div style={{ fontSize: 12, color: T.textMuted }}>{specialist.title}</div>
           </div>
         </div>
 
-        {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-          {[
-            { icon:"📅", label:"الجلسة القادمة", value:sp.nextSession, color:T.primary },
-            { icon:"🔢", label:"جلسات متبقية",   value:`${sp.sessionsLeft} جلسات`, color:T.secondary },
-          ].map(({ icon, label, value, color }) => (
-            <div key={label} style={{
-              padding: "12px", borderRadius: 14,
-              background: T.surfaceAlt, border: `1px solid ${T.border}`,
-            }}>
-              <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color }}>{value}</div>
-              <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>{label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Progress bar */}
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ fontSize: 12, color: T.textMuted }}>التقدم العلاجي</span>
-            <span style={{ fontSize: 12, fontWeight: 800, color: T.primary }}>{CHILD.progress}%</span>
+            <span style={{ fontSize: 12, color: T.textMuted }}>مهام النهاردة</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: T.primary }}>{progress}%</span>
           </div>
           <div style={{ height: 8, background: T.border, borderRadius: 999, overflow: "hidden" }}>
             <div style={{
-              height: "100%", width: `${CHILD.progress}%`,
+              height: "100%", width: `${progress}%`,
               background: `linear-gradient(90deg, ${T.primary}, ${T.primaryLight})`,
-              borderRadius: 999, transition: "width 0.6s ease",
-            }}/>
+            }} />
           </div>
         </div>
-
-        <button style={{
-          width: "100%", marginTop: 16, padding: "11px",
-          borderRadius: 12, border: "none",
-          background: T.tealBg, color: T.teal,
-          fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-        }}>💬 تواصل مع الأخصائية</button>
       </div>
     </Card>
   );
 }
 
-// ─── Calendar Card ────────────────────────────────────────────────────────────
-function CalendarCard() {
-  const done  = TASKS_TODAY.filter(t => t.done).length;
-  const total = TASKS_TODAY.length;
-  const pct   = Math.round((done / total) * 100);
-
+// ─── Calendar / Tasks Card ─────────────────────────────────────────────────────
+function CalendarCard({ tasksToday, streak, progress }: any) {
   return (
     <Card>
       <div style={{ padding: "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-          <div>
-            <SectionLabel>مهام اليوم</SectionLabel>
-            <div style={{ fontSize: 22, fontWeight: 900, color: T.text }}>
-              {done}/{total} <span style={{ fontSize: 14, color: T.textMuted, fontWeight: 500 }}>أُنجزت</span>
-            </div>
-          </div>
-          <div style={{ position: "relative", width: 72, height: 72, flexShrink: 0 }}>
-            <ProgressRing pct={pct} size={72} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <SectionLabel>مهام النهاردة</SectionLabel>
+          <div style={{ position: "relative", width: 56, height: 56, flexShrink: 0 }}>
+            <ProgressRing pct={progress} size={56} />
             <div style={{
               position: "absolute", inset: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 14, fontWeight: 900, color: T.primary,
-            }}>{pct}%</div>
+              fontSize: 11, fontWeight: 900, color: T.primary,
+            }}>{progress}%</div>
           </div>
         </div>
 
-        {/* Streak */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "10px 14px", borderRadius: 12,
-          background: T.primaryBg, marginBottom: 16,
-        }}>
-          <span style={{ fontSize: 20 }}>🔥</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: T.primary }}>
-            {CHILD.streak} أيام متتالية إنجاز! عظيم!
-          </span>
-        </div>
+        {streak > 0 && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "10px 14px", borderRadius: 12,
+            background: T.primaryBg, marginBottom: 16,
+          }}>
+            <span style={{ fontSize: 20 }}>🔥</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: T.primary }}>
+              {streak} أيام متتالية إنجاز! عظيم!
+            </span>
+          </div>
+        )}
 
-        {/* Task list */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {TASKS_TODAY.map(task => (
-            <div key={task.id} style={{
-              display: "flex", alignItems: "center", gap: 12,
-              padding: "10px 14px", borderRadius: 14,
-              background: task.done ? T.successBg : T.surfaceAlt,
-              border: `1px solid ${task.done ? T.success + "33" : T.border}`,
-            }}>
-              <div style={{
-                width: 26, height: 26, borderRadius: 8, flexShrink: 0,
-                background: task.done ? T.success : T.border,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 14, color: "#fff",
-              }}>{task.done ? "✓" : ""}</div>
-              <span style={{ fontSize: 20 }}>{task.emoji}</span>
-              <span style={{
-                flex: 1, fontSize: 14, fontWeight: 600,
-                color: task.done ? T.success : T.textMuted,
-                textDecoration: task.done ? "line-through" : "none",
-              }}>{task.label}</span>
-              {task.done && <span style={{ fontSize: 16 }}>⭐</span>}
-            </div>
-          ))}
-        </div>
+        {tasksToday.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "20px", color: T.textMuted, fontSize: 13 }}>
+            لسه مفيش مهام مضافة للنهاردة
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {tasksToday.map((task: any) => (
+              <div key={task.id} style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "10px 14px", borderRadius: 14,
+                background: task.done ? T.successBg : T.surfaceAlt,
+                border: `1px solid ${task.done ? T.success + "33" : T.border}`,
+              }}>
+                <div style={{
+                  width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+                  background: task.done ? T.success : T.border,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 14, color: "#fff",
+                }}>{task.done ? "✓" : ""}</div>
+                <span style={{ fontSize: 20 }}>{task.emoji}</span>
+                <span style={{
+                  flex: 1, fontSize: 14, fontWeight: 600,
+                  color: task.done ? T.success : T.textMuted,
+                  textDecoration: task.done ? "line-through" : "none",
+                }}>{task.label}</span>
+                {task.done && <span style={{ fontSize: 16 }}>⭐</span>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Card>
   );
 }
 
 // ─── Games Card ───────────────────────────────────────────────────────────────
-function GamesCard() {
+function GamesCard({ gamesToday }: any) {
+  const totalMinutes = gamesToday.reduce((sum: number, g: any) => sum + Math.round((g.duration_seconds || 0) / 60), 0);
   return (
     <Card>
       <div style={{ padding: "20px" }}>
         <SectionLabel>الألعاب اللي لعبها النهارده</SectionLabel>
 
-        {GAMES_TODAY.length === 0 ? (
+        {gamesToday.length === 0 ? (
           <div style={{ textAlign: "center", padding: "24px", color: T.textMuted, fontSize: 13 }}>
             <div style={{ fontSize: 36, marginBottom: 8 }}>🎮</div>
-            لم يلعب أي لعبة اليوم
+            لسه ما لعبش أي لعبة النهارده
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {GAMES_TODAY.map(g => (
+            {gamesToday.map((g: any) => (
               <div key={g.id} style={{
                 display: "flex", alignItems: "center", gap: 14,
                 padding: "14px 16px", borderRadius: 16,
@@ -300,14 +236,15 @@ function GamesCard() {
                   background: T.secondaryBg,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 26, flexShrink: 0,
-                }}>{g.emoji}</div>
+                }}>🎮</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{g.label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{g.games?.title || "لعبة"}</div>
                   <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>
-                    🕐 {g.time} · {g.duration}
+                    🕐 {new Date(g.played_at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}
+                    {" · "}{Math.round((g.duration_seconds || 0) / 60)} دقيقة
                   </div>
                   <div style={{ marginTop: 5 }}>
-                    <Stars count={g.stars} />
+                    <Stars count={Math.min(5, Math.round((g.score || 0) / 20))} />
                   </div>
                 </div>
               </div>
@@ -315,48 +252,138 @@ function GamesCard() {
           </div>
         )}
 
-        {/* Total time */}
-        <div style={{
-          marginTop: 14, padding: "10px 14px", borderRadius: 12,
-          background: T.secondaryBg, border: `1px solid ${T.secondary}22`,
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-        }}>
-          <span style={{ fontSize: 12, color: T.textMuted, fontWeight: 600 }}>إجمالي وقت الألعاب</span>
-          <span style={{ fontSize: 14, fontWeight: 800, color: T.secondary }}>35 دقيقة</span>
-        </div>
+        {gamesToday.length > 0 && (
+          <div style={{
+            marginTop: 14, padding: "10px 14px", borderRadius: 12,
+            background: T.secondaryBg, border: `1px solid ${T.secondary}22`,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <span style={{ fontSize: 12, color: T.textMuted, fontWeight: 600 }}>إجمالي وقت الألعاب</span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: T.secondary }}>{totalMinutes} دقيقة</span>
+          </div>
+        )}
       </div>
     </Card>
   );
 }
 
 // ─── Header ───────────────────────────────────────────────────────────────────
-function Header() {
+function Header({ child, children, selectedChildId, onSelectChild }: any) {
   const today = new Date().toLocaleDateString("ar-EG", { weekday:"long", day:"numeric", month:"long" });
   return (
     <div style={{
       padding: "20px 20px 18px",
       background: T.surface,
       borderBottom: `1px solid ${T.border}`,
-      display: "flex", justifyContent: "space-between", alignItems: "center",
     }}>
-      <div>
-        <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 2 }}>{today}</div>
-        <h1 style={{ fontSize: 20, fontWeight: 900, color: T.text, margin: 0 }}>
-          متابعة {CHILD.name} 👨‍👩‍👦
-        </h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 2 }}>{today}</div>
+          <h1 style={{ fontSize: 20, fontWeight: 900, color: T.text, margin: 0 }}>
+            متابعة {child.full_name} 👨‍👩‍👦
+          </h1>
+        </div>
+        <div style={{
+          width: 42, height: 42, borderRadius: 14,
+          background: T.primaryBg, border: `2px solid ${T.primaryLight}44`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 22,
+        }}>👦</div>
       </div>
-      <div style={{
-        width: 42, height: 42, borderRadius: 14,
-        background: T.primaryBg, border: `2px solid ${T.primaryLight}44`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 22,
-      }}>{CHILD.avatar}</div>
+
+      {/* Child switcher — يظهر بس لو أكتر من طفل */}
+      {children.length > 1 && (
+        <div style={{ display: "flex", gap: 8, marginTop: 14, overflowX: "auto" }}>
+          {children.map((c: any) => (
+            <button
+              key={c.id}
+              onClick={() => onSelectChild(c.id)}
+              style={{
+                padding: "6px 16px", borderRadius: 999, whiteSpace: "nowrap",
+                border: `1.5px solid ${c.id === selectedChildId ? T.primary : T.border}`,
+                background: c.id === selectedChildId ? T.primaryBg : T.surface,
+                color: c.id === selectedChildId ? T.primary : T.textMuted,
+                fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              {c.full_name}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── App ──────────────────────────────────────────────────────────────────────
+// ─── Add Child Form ───────────────────────────────────────────────────────────
+function AddChildForm({ onAdd }: { onAdd: (v: { fullName: string; age: number }) => Promise<{ error: string | null }> }) {
+  const [fullName, setFullName] = useState("");
+  const [age, setAge] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!fullName.trim() || !age) {
+      setErr("محتاجين اسم الطفل وسنّه");
+      return;
+    }
+    setSubmitting(true);
+    setErr("");
+    const { error } = await onAdd({ fullName: fullName.trim(), age: Number(age) });
+    setSubmitting(false);
+    if (error) setErr(error);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={{
+      maxWidth: 340, margin: "20px auto 0", display: "flex",
+      flexDirection: "column", gap: 10, textAlign: "right",
+    }}>
+      <input
+        value={fullName}
+        onChange={(e) => setFullName(e.target.value)}
+        placeholder="اسم الطفل"
+        style={{
+          padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${T.border}`,
+          fontSize: 14, fontFamily: "inherit", textAlign: "right",
+        }}
+      />
+      <input
+        value={age}
+        onChange={(e) => setAge(e.target.value)}
+        type="number"
+        placeholder="عمر الطفل"
+        style={{
+          padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${T.border}`,
+          fontSize: 14, fontFamily: "inherit", textAlign: "right",
+        }}
+      />
+      {err && <div style={{ color: "#E05555", fontSize: 12, textAlign: "center" }}>{err}</div>}
+      <button
+        type="submit"
+        disabled={submitting}
+        style={{
+          padding: "12px", borderRadius: 999, border: "none",
+          background: T.primary, color: "#fff", fontSize: 14, fontWeight: 800,
+          cursor: "pointer", fontFamily: "inherit",
+        }}
+      >
+        {submitting ? "جاري الإضافة..." : "أضف الطفل"}
+      </button>
+    </form>
+  );
+}
+
+
 export default function ParentDashboard() {
+  const {
+    children, selectedChild, selectedChildId, setSelectedChildId, addChild,
+    specialist, moodToday, weekMoods, tasksToday, gamesToday, streak, progress,
+    loading, childrenLoading, error,
+  } = useParentDashboardData();
+  const navigate = useNavigate();
+
   return (
     <>
       <style>{`
@@ -370,45 +397,82 @@ export default function ParentDashboard() {
         minHeight: "100vh", background: T.bg,
         fontFamily: "'Tajawal', sans-serif", direction: "rtl",
       }}>
-        <Header />
+        {!selectedChild ? (
+          <div style={{ padding: 60, textAlign: "center", color: T.textMuted }}>
+            {error
+              ? `حصل خطأ: ${error}`
+              : childrenLoading
+              ? "بنجهّز بيانات طفلك..."
+              : (
+                <div>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>👶</div>
+                  <div style={{ fontWeight: 800, color: T.text, marginBottom: 6 }}>لسه مفيش طفل مسجل على حسابك</div>
+                  <div style={{ fontSize: 13, marginBottom: 4 }}>أضف بيانات طفلك عشان تقدر تتابع تقدمه هنا</div>
+                  <AddChildForm onAdd={addChild} />
+                </div>
+              )}
+          </div>
+        ) : (
+          <>
+            <Header
+              child={selectedChild}
+              children={children}
+              selectedChildId={selectedChildId}
+              onSelectChild={setSelectedChildId}
+            />
 
-        <div style={{ maxWidth: 680, margin: "0 auto", padding: "20px 16px 40px" }}>
-
-          {/* Child summary banner */}
-          <div style={{
-            padding: "16px 20px", borderRadius: 20, marginBottom: 20,
-            background: `linear-gradient(135deg, ${T.primary} 0%, ${T.secondary} 100%)`,
-            display: "flex", alignItems: "center", gap: 16,
-            boxShadow: `0 8px 24px ${T.primary}33`,
-          }}>
-            <div style={{ fontSize: 44 }}>{CHILD.avatar}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 17, fontWeight: 900, color: "#fff" }}>{CHILD.name}</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>{CHILD.age} سنوات</div>
-              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                {[
-                  { icon:"🔥", val:`${CHILD.streak} أيام` },
-                  { icon:"📈", val:`${CHILD.progress}%` },
-                  { icon:"🎮", val:`${GAMES_TODAY.length} ألعاب` },
-                ].map(({icon,val}) => (
-                  <div key={val} style={{
-                    padding: "4px 10px", borderRadius: 999,
-                    background: "rgba(255,255,255,0.2)",
-                    fontSize: 12, fontWeight: 700, color: "#fff",
-                  }}>{icon} {val}</div>
-                ))}
+            <div style={{ maxWidth: 680, margin: "0 auto", padding: "20px 16px 40px" }}>
+              {/* Child summary banner */}
+              <div style={{
+                padding: "16px 20px", borderRadius: 20, marginBottom: 20,
+                background: `linear-gradient(135deg, ${T.primary} 0%, ${T.secondary} 100%)`,
+                display: "flex", alignItems: "center", gap: 16,
+                boxShadow: `0 8px 24px ${T.primary}33`,
+              }}>
+                <div style={{ fontSize: 44 }}>👦</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: "#fff" }}>{selectedChild.full_name}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>{selectedChild.age} سنوات</div>
+                  <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    {[
+                      { icon:"🔥", val:`${streak} أيام` },
+                      { icon:"📈", val:`${progress}%` },
+                      { icon:"🎮", val:`${gamesToday.length} ألعاب` },
+                    ].map(({icon,val}) => (
+                      <div key={val} style={{
+                        padding: "4px 10px", borderRadius: 999,
+                        background: "rgba(255,255,255,0.2)",
+                        fontSize: 12, fontWeight: 700, color: "#fff",
+                      }}>{icon} {val}</div>
+                    ))}
+                    <button
+                      onClick={() => navigate("/kids")}
+                      style={{
+                        padding: "5px 14px", borderRadius: 999, border: "none",
+                        background: "#fff", color: T.primary,
+                        fontSize: 12, fontWeight: 800, cursor: "pointer",
+                        fontFamily: "inherit", marginRight: "auto",
+                      }}
+                    >
+                      🎮 داشبورد {selectedChild.full_name.split(" ")[0]}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Cards */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <MoodCard />
-            <SpecialistCard />
-            <CalendarCard />
-            <GamesCard />
-          </div>
-        </div>
+              {loading ? (
+                <div style={{ textAlign: "center", padding: 40, color: T.textMuted }}>بيتحمّل...</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <MoodCard child={selectedChild} moodToday={moodToday} weekMoods={weekMoods} />
+                  <SpecialistCard specialist={specialist} progress={progress} />
+                  <CalendarCard tasksToday={tasksToday} streak={streak} progress={progress} />
+                  <GamesCard gamesToday={gamesToday} />
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </>
   );
