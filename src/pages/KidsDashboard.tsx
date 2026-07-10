@@ -6,6 +6,8 @@ import SequencingGame from "./SequencingGame";
 import ColorMatchGame from "./ColorMatchGame";
 import TracingGame from "./TracingGame";
 import MusicGame from "./MusicGame";
+import { useKidsDashboardData } from "../hooks/useKidsDashboardData";
+import { supabase } from "../supabaseClient";
 
 const MOODS = [
   { id:"happy", emoji:"😄", label:"سعيد",  color:"#FFD93D", bg:"#FFFBEA", border:"#FFD93D" },
@@ -72,9 +74,10 @@ function SectionTitle({ emoji, title }: { emoji: string; title: string }) {
 }
 
 // ─── Mood Section ─────────────────────────────────────────────────────────────
-function MoodSection() {
+function MoodSection({ childId }: { childId: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const handleSelect = (id: string) => {
     setSelected(id);
@@ -82,6 +85,19 @@ function MoodSection() {
   };
 
   const chosen = MOODS.find(m => m.id === selected);
+
+  async function handleSave() {
+    if (!selected || !childId) return;
+    setSaving(true);
+    await supabase.from("mood_logs").insert({
+      child_id: childId,
+      mood: selected,
+      source: "child",
+      logged_at: new Date().toISOString(),
+    });
+    setSaving(false);
+    setSubmitted(true);
+  }
 
   return (
     <div style={{ marginBottom:40 }}>
@@ -129,14 +145,15 @@ function MoodSection() {
             }
           </div>
           <button
-            onClick={() => setSubmitted(true)}
+            onClick={handleSave}
+            disabled={saving}
             style={{
               padding:"12px 20px", borderRadius:14, border:"none",
               background:K.primary, color:"#fff",
               fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"inherit",
               boxShadow:`0 4px 14px ${K.primary}44`,
             }}
-          >حفظ ✓</button>
+          >{saving ? "جاري الحفظ..." : "حفظ ✓"}</button>
         </div>
       )}
 
@@ -154,57 +171,19 @@ function MoodSection() {
 }
 
 // ─── Calendar / Todo Section ──────────────────────────────────────────────────
-function CalendarSection() {
-  const [week, setWeek] = useState(buildWeek);
-  const todayKey = new Date().toDateString();
-  const [selectedDay, setSelectedDay] = useState(todayKey);
-
-  const toggleTask = (taskId: string) => {
-    setWeek(prev => {
-      const updated = { ...prev };
-      const dayData = { ...updated[selectedDay] };
-      dayData.tasks = dayData.tasks.map(t =>
-        t.id === taskId ? { ...t, done: !t.done } : t
-      );
-      updated[selectedDay] = dayData;
-      return updated;
-    });
-  };
-
-  const dayData = week[selectedDay];
-  const donePct = Math.round((dayData.tasks.filter(t => t.done).length / dayData.tasks.length) * 100);
+// ⚠️ ملحوظة نطاق: بيعرض بس مهام "النهاردة" الحقيقية من قاعدة
+// البيانات. عرض/تعديل أيام تانية في الأسبوع (تاريخياً) هيتضاف
+// لاحقاً كخطوة منفصلة — TODO
+function CalendarSection({ tasksToday, toggleTask }: { tasksToday: any[]; toggleTask: (id: string) => void }) {
+  const todayLabel = new Date().toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
+  const donePct = tasksToday.length > 0
+    ? Math.round((tasksToday.filter(t => t.done).length / tasksToday.length) * 100)
+    : 0;
 
   return (
     <div style={{ marginBottom:40 }}>
       <SectionTitle emoji="📅" title="مهام اليوم" />
-
-      {/* Day selector */}
-      <div style={{ display:"flex", gap:8, marginBottom:20, overflowX:"auto", paddingBottom:4 }}>
-        {Object.entries(week).map(([key, { date }]) => {
-          const isToday  = key === todayKey;
-          const isActive = key === selectedDay;
-          const done     = week[key].tasks.filter(t => t.done).length;
-          const total    = week[key].tasks.length;
-          return (
-            <button key={key} onClick={() => setSelectedDay(key)} style={{
-              flexShrink:0, padding:"10px 14px", borderRadius:16, border:"none",
-              background: isActive ? K.primary : K.surface,
-              color: isActive ? "#fff" : K.textMuted,
-              fontFamily:"inherit", cursor:"pointer",
-              boxShadow: isActive ? `0 4px 16px ${K.primary}44` : `0 2px 8px ${K.shadow}`,
-              transform: isActive ? "scale(1.05)" : "scale(1)",
-              transition:"all 0.2s",
-              minWidth:72, textAlign:"center",
-            }}>
-              <div style={{ fontSize:11, fontWeight:600, marginBottom:4, opacity:isActive?1:0.7 }}>
-                {isToday ? "اليوم" : DAYS_AR[date.getDay()].slice(0,3)}
-              </div>
-              <div style={{ fontSize:18, fontWeight:900 }}>{date.getDate()}</div>
-              <div style={{ fontSize:10, marginTop:4, opacity:0.8 }}>{done}/{total}</div>
-            </button>
-          );
-        })}
-      </div>
+      <div style={{ fontSize:13, color:K.textMuted, marginBottom:16, fontWeight:600 }}>{todayLabel}</div>
 
       {/* Progress bar */}
       <div style={{ marginBottom:18 }}>
@@ -219,7 +198,7 @@ function CalendarSection() {
             borderRadius:999, transition:"width 0.4s ease",
           }}/>
         </div>
-        {donePct === 100 && (
+        {donePct === 100 && tasksToday.length > 0 && (
           <div style={{ textAlign:"center", marginTop:10, fontSize:22 }}>
             🎉 أنجزت كل مهامك! عظيم جداً!
           </div>
@@ -227,50 +206,54 @@ function CalendarSection() {
       </div>
 
       {/* Task list */}
-      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-        {dayData.tasks.map(task => (
-          <button
-            key={task.id}
-            onClick={() => toggleTask(task.id)}
-            style={{
-              display:"flex", alignItems:"center", gap:14,
-              padding:"14px 18px", borderRadius:18, border:"none",
-              background: task.done
-                ? `linear-gradient(135deg, ${K.primary}18, ${K.secondary}10)`
-                : K.surface,
-              boxShadow: `0 2px 10px ${K.shadow}`,
-              cursor:"pointer", fontFamily:"inherit", textAlign:"right",
-              transition:"all 0.2s",
-              border: task.done ? `1.5px solid ${K.primary}44` : `1.5px solid ${K.border}`,
-            }}
-          >
-            {/* Checkbox */}
-            <div style={{
-              width:28, height:28, borderRadius:10, flexShrink:0,
-              background: task.done ? K.primary : "transparent",
-              border: task.done ? "none" : `2px solid ${K.border}`,
-              display:"flex", alignItems:"center", justifyContent:"center",
-              fontSize:16, transition:"all 0.2s",
-              boxShadow: task.done ? `0 3px 10px ${K.primary}55` : "none",
-            }}>
-              {task.done && "✓"}
-            </div>
+      {tasksToday.length === 0 ? (
+        <div style={{ textAlign:"center", padding:30, color:K.textMuted, fontSize:14 }}>بنجهّز مهامك...</div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {tasksToday.map(task => (
+            <button
+              key={task.id}
+              onClick={() => toggleTask(task.id)}
+              style={{
+                display:"flex", alignItems:"center", gap:14,
+                padding:"14px 18px", borderRadius:18,
+                background: task.done
+                  ? `linear-gradient(135deg, ${K.primary}18, ${K.secondary}10)`
+                  : K.surface,
+                boxShadow: `0 2px 10px ${K.shadow}`,
+                cursor:"pointer", fontFamily:"inherit", textAlign:"right",
+                transition:"all 0.2s",
+                border: task.done ? `1.5px solid ${K.primary}44` : `1.5px solid ${K.border}`,
+              }}
+            >
+              {/* Checkbox */}
+              <div style={{
+                width:28, height:28, borderRadius:10, flexShrink:0,
+                background: task.done ? K.primary : "transparent",
+                border: task.done ? "none" : `2px solid ${K.border}`,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:16, transition:"all 0.2s",
+                boxShadow: task.done ? `0 3px 10px ${K.primary}55` : "none",
+              }}>
+                {task.done && "✓"}
+              </div>
 
-            <span style={{ fontSize:24 }}>{task.emoji}</span>
+              <span style={{ fontSize:24 }}>{task.emoji}</span>
 
-            <span style={{
-              fontSize:15, fontWeight:700, flex:1,
-              color: task.done ? K.primary : K.text,
-              textDecoration: task.done ? "line-through" : "none",
-              opacity: task.done ? 0.7 : 1,
-            }}>
-              {task.label}
-            </span>
+              <span style={{
+                fontSize:15, fontWeight:700, flex:1,
+                color: task.done ? K.primary : K.text,
+                textDecoration: task.done ? "line-through" : "none",
+                opacity: task.done ? 0.7 : 1,
+              }}>
+                {task.label}
+              </span>
 
-            {task.done && <span style={{ fontSize:20 }}>⭐</span>}
-          </button>
-        ))}
-      </div>
+              {task.done && <span style={{ fontSize:20 }}>⭐</span>}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -440,59 +423,109 @@ function GameModal({ gameId, onClose }: { gameId: string; onClose: () => void })
   );
 }
 
+// ─── Child Picker (لو ولي الأمر معاه أكتر من طفل) ─────────────────────────────
+function ChildPicker({ children, onSelect }: { children: any[]; onSelect: (id: string) => void }) {
+  return (
+    <div style={{
+      minHeight:"100vh", background:K.bg, fontFamily:"'Tajawal',sans-serif",
+      direction:"rtl", display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"center", padding:24, gap:24,
+    }}>
+      <div style={{ fontSize:48 }}>👋</div>
+      <h1 style={{ fontSize:22, fontWeight:900, color:K.text, margin:0 }}>مين هيلعب دلوقتي؟</h1>
+      <div style={{ display:"flex", gap:16, flexWrap:"wrap", justifyContent:"center" }}>
+        {children.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => onSelect(c.id)}
+            style={{
+              width:130, padding:"24px 12px", borderRadius:24, border:`2px solid ${K.border}`,
+              background:K.surface, cursor:"pointer", fontFamily:"inherit",
+              display:"flex", flexDirection:"column", alignItems:"center", gap:10,
+              boxShadow:`0 4px 16px ${K.shadow}`,
+            }}
+          >
+            <div style={{
+              width:64, height:64, borderRadius:"50%", background:K.primary+"18",
+              display:"flex", alignItems:"center", justifyContent:"center", fontSize:32,
+            }}>👦</div>
+            <span style={{ fontSize:15, fontWeight:800, color:K.text }}>{c.full_name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function KidsDashboard() {
   const [tab, setTab]           = useState("home");
   const [gameModal, setGame]    = useState<string|null>(null);
   const [activeGame, setActive] = useState<string|null>(null);
-  const [points, setPoints]     = useState(120);
+
+  const {
+    children, childrenLoading, selectedChild, selectedChildId, setSelectedChildId,
+    tasksToday, toggleTask, points, addGameReward, loading, error,
+  } = useKidsDashboardData();
 
   const handlePlayGame = (id: string) => {
-    // All six games are now live.
     setActive(id);
   };
 
   const handleMemoryComplete = ({ moves }: { moves: number; time: number }) => {
-    const reward = moves <= 8 ? 20 : 10; // fewer moves earns more coins
-    setPoints(p => p + reward);
-    // TODO(Supabase): persist the reward to the child's rewards row.
-    // await supabase.from("rewards").update({ coins: coins + reward }).eq("child_id", childId);
+    const reward = moves <= 8 ? 20 : 10;
+    addGameReward({ localGameId: "memory", score: Math.max(0, 100 - moves * 5), level: 1, coinsEarned: reward });
   };
 
-  const handleAnimalSoundsComplete = ({ score }: { score: number; level: number }) => {
-    const reward = Math.round(score / 5); // 100 points max -> up to 20 coins
-    setPoints(p => p + reward);
-    // TODO(Supabase): persist the reward to the child's rewards row.
-    // await supabase.from("rewards").update({ coins: coins + reward }).eq("child_id", childId);
+  const handleAnimalSoundsComplete = ({ score, level }: { score: number; level: number }) => {
+    const reward = Math.round(score / 5);
+    addGameReward({ localGameId: "animals", score, level, coinsEarned: reward });
   };
 
-  const handleSequencingComplete = ({ score }: { score: number; level: number }) => {
-    const reward = Math.round(score / 3); // 105 points max -> up to 35 coins
-    setPoints(p => p + reward);
-    // TODO(Supabase): persist the reward to the child's rewards row.
-    // await supabase.from("rewards").update({ coins: coins + reward }).eq("child_id", childId);
+  const handleSequencingComplete = ({ score, level }: { score: number; level: number }) => {
+    const reward = Math.round(score / 3);
+    addGameReward({ localGameId: "puzzle", score, level, coinsEarned: reward });
   };
 
-  const handleColorMatchComplete = ({ score }: { score: number; level: number }) => {
-    const reward = Math.round(score / 5); // 100 points max -> up to 20 coins
-    setPoints(p => p + reward);
-    // TODO(Supabase): persist the reward to the child's rewards row.
-    // await supabase.from("rewards").update({ coins: coins + reward }).eq("child_id", childId);
+  const handleColorMatchComplete = ({ score, level }: { score: number; level: number }) => {
+    const reward = Math.round(score / 5);
+    addGameReward({ localGameId: "colors", score, level, coinsEarned: reward });
   };
 
-  const handleTracingComplete = ({ score }: { score: number; level: number }) => {
-    const reward = Math.round(score / 2); // 60 points max -> up to 30 coins
-    setPoints(p => p + reward);
-    // TODO(Supabase): persist the reward to the child's rewards row.
-    // await supabase.from("rewards").update({ coins: coins + reward }).eq("child_id", childId);
+  const handleTracingComplete = ({ score, level }: { score: number; level: number }) => {
+    const reward = Math.round(score / 2);
+    addGameReward({ localGameId: "draw", score, level, coinsEarned: reward });
   };
 
-  const handleMusicComplete = ({ score }: { score: number; level: number }) => {
-    const reward = Math.round(score / 2); // 60 points max -> up to 30 coins
-    setPoints(p => p + reward);
-    // TODO(Supabase): persist the reward to the child's rewards row.
-    // await supabase.from("rewards").update({ coins: coins + reward }).eq("child_id", childId);
+  const handleMusicComplete = ({ score, level }: { score: number; level: number }) => {
+    const reward = Math.round(score / 2);
+    addGameReward({ localGameId: "music", score, level, coinsEarned: reward });
   };
+
+  // لسه بيحمّل بيانات الأطفال
+  if (childrenLoading) {
+    return (
+      <div style={{ minHeight:"100vh", background:K.bg, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Tajawal',sans-serif" }}>
+        بنجهّز كل حاجة...
+      </div>
+    );
+  }
+
+  // مفيش طفل مسجل خالص
+  if (children.length === 0) {
+    return (
+      <div style={{ minHeight:"100vh", background:K.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12, fontFamily:"'Tajawal',sans-serif", padding:24, textAlign:"center" }}>
+        <div style={{ fontSize:40 }}>👶</div>
+        <div style={{ fontWeight:800, color:K.text }}>لسه مفيش طفل مسجل</div>
+        <div style={{ fontSize:13, color:K.textMuted }}>ارجع للوحة ولي الأمر وأضف بيانات طفلك الأول</div>
+      </div>
+    );
+  }
+
+  // أكتر من طفل ولسه محددش مين هيلعب
+  if (children.length > 1 && !selectedChildId) {
+    return <ChildPicker children={children} onSelect={setSelectedChildId} />;
+  }
 
   if (activeGame === "memory") {
     return <MemoryGame onExit={() => setActive(null)} onComplete={handleMemoryComplete} />;
@@ -515,13 +548,13 @@ export default function KidsDashboard() {
 
   const renderContent = () => {
     if (tab === "games")    return <GamesSection onPlayGame={handlePlayGame} />;
-    if (tab === "calendar") return <CalendarSection />;
-    if (tab === "mood")     return <MoodSection />;
+    if (tab === "calendar") return <CalendarSection tasksToday={tasksToday} toggleTask={toggleTask} />;
+    if (tab === "mood")     return <MoodSection childId={selectedChildId!} />;
     // home = all sections
     return (
       <>
-        <MoodSection />
-        <CalendarSection />
+        <MoodSection childId={selectedChildId!} />
+        <CalendarSection tasksToday={tasksToday} toggleTask={toggleTask} />
         <GamesSection onPlayGame={handlePlayGame} />
       </>
     );
@@ -546,7 +579,9 @@ export default function KidsDashboard() {
         <Header points={points} />
 
         <div style={{ padding:"0 16px", maxWidth:600, margin:"0 auto" }}>
-          {renderContent()}
+          {loading ? (
+            <div style={{ textAlign:"center", padding:40, color:K.textMuted }}>بيتحمّل...</div>
+          ) : renderContent()}
         </div>
 
         <BottomNav active={tab} onNav={setTab} />
