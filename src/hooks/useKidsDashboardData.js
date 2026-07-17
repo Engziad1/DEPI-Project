@@ -11,6 +11,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "./useNotifications";
 
 // المهام الافتراضية لأي يوم جديد — نفس النص المصحح من طلبك
 // (صيغة مفرد متكلم، وإضافة الوضوء اللي كان ناقص)
@@ -42,6 +43,7 @@ function todayStr() {
 
 export function useKidsDashboardData() {
   const { profile } = useAuth();
+  const { notifySelf } = useNotifications();
   const [children, setChildren] = useState([]);
   const [childrenLoading, setChildrenLoading] = useState(true);
   const [selectedChildId, setSelectedChildId] = useState(null);
@@ -150,12 +152,24 @@ export function useKidsDashboardData() {
     const newDone = !task.done;
 
     // تحديث فوري في الواجهة (Optimistic)
-    setTasksToday((prev) => prev.map((t) => (t.id === taskId ? { ...t, done: newDone } : t)));
+    const updatedTasks = tasksToday.map((t) => (t.id === taskId ? { ...t, done: newDone } : t));
+    setTasksToday(updatedTasks);
 
     const { error } = await supabase.from("daily_tasks").update({ done: newDone }).eq("id", taskId);
     if (error) {
       // رجّع الحالة القديمة لو فشل التحديث
       setTasksToday((prev) => prev.map((t) => (t.id === taskId ? { ...t, done: !newDone } : t)));
+      return;
+    }
+
+    // لو دي آخر مهمة خلّصت كل المهام، ابعت إشعار لولي الأمر
+    const allDone = updatedTasks.length > 0 && updatedTasks.every((t) => t.done);
+    if (newDone && allDone) {
+      notifySelf({
+        type: "tasks_done",
+        title: "🎉 إنجاز رائع!",
+        message: `${children.find((c) => c.id === selectedChildId)?.full_name || "طفلك"} خلّص كل مهام النهاردة!`,
+      });
     }
   }
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { specialistTokens as T } from "./theme";
 import { useTawaslDashboardData } from "../hooks/useTawaslDashboardData";
 import { supabase } from "../supabaseClient";
+import NotificationBell from "../components/NotificationBell";
 
 function progressColor(p) {
   return p >= 70 ? T.success : p >= 45 ? T.warning : T.danger;
@@ -511,6 +512,7 @@ function Layout({ children, active, onNav, specialist }) {
               <div style={{ fontSize:10, color:"rgba(255,255,255,0.45)", marginTop:2 }}>بوابة الأخصائيين</div>
             </div>
           </div>
+          <NotificationBell color={T.primary} />
         </div>
       </div>
 

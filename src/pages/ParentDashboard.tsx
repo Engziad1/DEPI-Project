@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useParentDashboardData } from "../hooks/useParentDashboardData";
+import NotificationBell from "../components/NotificationBell";
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 const T = {
@@ -283,12 +284,15 @@ function Header({ child, children, selectedChildId, onSelectChild }: any) {
             متابعة {child.full_name} 👨‍👩‍👦
           </h1>
         </div>
-        <div style={{
-          width: 42, height: 42, borderRadius: 14,
-          background: T.primaryBg, border: `2px solid ${T.primaryLight}44`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 22,
-        }}>👦</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <NotificationBell color={T.primary} />
+          <div style={{
+            width: 42, height: 42, borderRadius: 14,
+            background: T.primaryBg, border: `2px solid ${T.primaryLight}44`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 22,
+          }}>👦</div>
+        </div>
       </div>
 
       {/* Child switcher — يظهر بس لو أكتر من طفل */}
